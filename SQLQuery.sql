@@ -1,0 +1,242 @@
+﻿--Analysis 1 Shipment & Transportation Analysis
+
+-- a)What is the total number of shipments, and how are they distributed across different transportation modes?
+
+
+SELECT Transport, COUNT(*) AS Shipments_By_Mode,
+    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM dbo.GlobalSupplyChainRisk) AS DECIMAL(5,2)) AS Percentage_Distribution
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport ORDER BY Shipments_By_Mode DESC;
+
+--b) What percentage of total shipments does each transportation mode represent?
+
+SELECT Transport, COUNT(*) AS Shipments_By_Mode,
+    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM dbo.GlobalSupplyChainRisk) AS DECIMAL(5,2)) AS Percentage_Distribution
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport ORDER BY Shipments_By_Mode DESC;
+
+--c)What is the average distance, shipment weight, and lead time for each transportation mode?
+
+SELECT Transport,
+    AVG(Distance_km) AS Avg_Distance,
+    AVG(Weight_tons) AS Avg_Shipment_Weight,
+    AVG(Lead_Time) AS Avg_Lead_Time
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport ORDER BY Transport;
+
+--d)What is the average carrier reliability and fuel price for each transportation mode? 
+SELECT Transport,
+    AVG(Carrier_Reliability) AS Avg_Carrier_Reliability,
+    AVG(Fuel_Price) AS Avg_Fuel_Price
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport ORDER BY Transport;
+
+--e)What is the disruption rate for each transportation mode?
+
+SELECT Transport,
+    COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport ORDER BY Disruption_Rate_Percent DESC;
+
+
+--Analysis 2 Route Performance Analysis
+
+
+--a)Which origin-destination routes handle the highest number of shipments?
+
+SELECT Origin_Port, Destination, COUNT(*) AS Total_Shipments
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination ORDER BY Total_Shipments DESC;
+
+--b)What is the average lead time for each route?
+
+SELECT Origin_Port, Destination, AVG(Lead_Time) AS Avg_Lead_Time
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination ORDER BY Avg_Lead_Time DESC;
+
+--c)What is the disruption rate for each route?
+SELECT Origin_Port,Destination,
+    COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination
+ORDER BY Disruption_Rate_Percent DESC;
+
+--d)What is the average carrier reliability and geopolitical risk for each route?
+
+SELECT 
+    Origin_Port, Destination,
+    AVG(Carrier_Reliability) AS Avg_Carrier_Reliability,
+    AVG(Geopolitical_Risk) AS Avg_Geopolitical_Risk
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination
+ORDER BY Avg_Carrier_Reliability DESC, Avg_Geopolitical_Risk DESC;
+
+--Analysis 3 Lead Time Analysis
+
+
+--a)What is the overall average lead time, and what are the minimum and maximum lead times?
+
+SELECT 
+    AVG(Lead_Time) AS Overall_Avg_Lead_Time,
+    MIN(Lead_Time) AS Min_Lead_Time,
+    MAX(Lead_Time) AS Max_Lead_Time
+FROM dbo.GlobalSupplyChainRisk;
+
+--b)How does average lead time vary across transportation modes?
+
+SELECT Transport,
+    AVG(Lead_Time) AS Avg_Lead_Time FROM dbo.GlobalSupplyChainRisk
+GROUP BY Transport ORDER BY Avg_Lead_Time DESC;
+
+--c)How does average lead time vary across different routes?
+
+SELECT Origin_Port, Destination, AVG(Lead_Time) AS Avg_Lead_Time FROM dbo.GlobalSupplyChainRisk
+GROUP BY Origin_Port, Destination ORDER BY Avg_Lead_Time DESC;
+
+--d)How does lead time differ between disrupted and non-disrupted shipments?
+
+SELECT CASE WHEN Disruption_Occurred = 1 THEN 'Disrupted'
+  ELSE 'Non-Disrupted' END AS Shipment_Status, COUNT(*) AS Total_Shipments,
+    AVG(Lead_Time) AS Avg_Lead_Time FROM dbo.GlobalSupplyChainRisk
+GROUP BY Disruption_Occurred ORDER BY Shipment_Status;
+
+--e)How does average lead time vary across different weather and geopolitical-risk categories?
+
+SELECT Weather_Condition, Geopolitical_Risk,
+    COUNT(*) AS Total_Shipments, AVG(Lead_Time) AS Avg_Lead_Time
+FROM dbo.GlobalSupplyChainRisk GROUP BY Weather_Condition, Geopolitical_Risk ORDER BY Avg_Lead_Time DESC;
+
+--f)What are the top 3 longest-lead-time shipments within each transportation mode?
+
+WITH RankedShipments AS (SELECT Transport, Shipment_ID, Origin_Port, Destination, Lead_Time,
+        ROW_NUMBER () OVER (PARTITION BY Transport ORDER BY Lead_Time DESC
+        ) AS RankWithinMode FROM dbo.GlobalSupplyChainRisk)
+SELECT Transport, Shipment_ID, Origin_Port,Destination, Lead_Time FROM RankedShipments
+WHERE RankWithinMode <= 3 ORDER BY Transport, Lead_Time DESC;
+
+
+--Analysis 4 Disruption Analysis
+
+--a)How many shipments experienced a disruption, and what percentage of total shipments does this represent?
+SELECT COUNT(*) AS Total_Shipments, SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Percent
+	FROM dbo.GlobalSupplyChainRisk;
+
+--b)What is the disruption rate for each transportation mode?
+
+SELECT Transport,
+    COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Transport
+ORDER BY Disruption_Rate_Percent DESC;
+
+--C)What is the disruption rate for each route?
+
+SELECT Origin_Port,Destination,
+    COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination ORDER BY Disruption_Rate_Percent DESC;
+
+--d)How does the disruption rate vary across different weather conditions?
+
+SELECT Weather_Condition, COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Weather_Condition ORDER BY Disruption_Rate_Percent DESC;
+
+--e)How does the disruption rate vary across geopolitical-risk and carrier-reliability categories?
+
+SELECT Geopolitical_Risk,Carrier_Reliability,
+    COUNT(*) AS Total_Shipments,
+    SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) AS Disrupted_Shipments,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk GROUP BY Geopolitical_Risk, Carrier_Reliability
+ORDER BY Disruption_Rate_Percent DESC;
+
+--f)How do lead time, carrier reliability, and geopolitical risk differ between disrupted and non-disrupted shipments?
+
+SELECT CASE WHEN Disruption_Occurred = 1 THEN 'Disrupted'
+   ELSE 'Non-Disrupted' END AS Shipment_Status,
+    COUNT(*) AS Total_Shipments,
+    AVG(Lead_Time) AS Avg_Lead_Time,
+    AVG(Carrier_Reliability) AS Avg_Carrier_Reliability,
+    AVG(Geopolitical_Risk) AS Avg_Geopolitical_Risk
+FROM dbo.GlobalSupplyChainRisk GROUP BY Disruption_Occurred ORDER BY Shipment_Status;
+
+
+--Analysis 5 High-Risk Route & Shipment Analysis
+
+--a)How many shipments fall into Low, Medium, and High overall risk categories based on defined business rules?
+
+SELECT CASE WHEN Geopolitical_Risk >= 8 
+             OR Carrier_Reliability <= 2 
+             OR Lead_Time >= 20 
+             OR Disruption_Occurred = 1 
+        THEN 'High Risk'WHEN Geopolitical_Risk BETWEEN 4 AND 7 
+              OR Carrier_Reliability BETWEEN 3 AND 5 
+             OR Lead_Time BETWEEN 10 AND 19 
+        THEN 'Medium Risk' ELSE 'Low Risk'
+    END AS Risk_Category, COUNT(*) AS Shipments_Count,
+    CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM dbo.GlobalSupplyChainRisk) AS DECIMAL(5,2)) AS Percentage_Share
+FROM dbo.GlobalSupplyChainRisk GROUP BY CASE 
+        WHEN Geopolitical_Risk >= 8 
+             OR Carrier_Reliability <= 2 
+             OR Lead_Time >= 20 
+             OR Disruption_Occurred = 1 
+        THEN 'High Risk'
+        WHEN Geopolitical_Risk BETWEEN 4 AND 7 
+             OR Carrier_Reliability BETWEEN 3 AND 5 
+             OR Lead_Time BETWEEN 10 AND 19 
+        THEN 'Medium Risk'ELSE 'Low Risk' END ORDER BY Shipments_Count DESC;
+
+--b)Which high-risk shipments have also experienced disruptions?
+
+SELECT Shipment_ID,Origin_Port,Destination,Transport,Lead_Time,Carrier_Reliability,Geopolitical_Risk,Disruption_Occurred
+FROM dbo.GlobalSupplyChainRisk WHERE (Geopolitical_Risk >= 8 
+     OR Carrier_Reliability <= 2 OR Lead_Time >= 20 
+     OR Disruption_Occurred = 1)   -- High Risk rules AND Disruption_Occurred = 1;   -- Must have disruption
+
+--c)Which routes have a combination of high disruption rates, long lead times, high geopolitical risk, and low carrier reliability?
+
+SELECT Origin_Port, Destination,
+    COUNT(*) AS Total_Shipments,
+    AVG(Lead_Time) AS Avg_Lead_Time,
+    AVG(Carrier_Reliability) AS Avg_Carrier_Reliability,
+    AVG(Geopolitical_Risk) AS Avg_Geopolitical_Risk,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent
+FROM dbo.GlobalSupplyChainRisk
+GROUP BY Origin_Port, Destination HAVING 
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) >= 20   -- High disruption rate (≥20%)
+    AND AVG(Lead_Time) >= 15                                             -- Long lead time
+    AND AVG(Geopolitical_Risk) >= 7                                      -- High geopolitical risk
+    AND AVG(Carrier_Reliability) <= 3                                    -- Low carrier reliability
+ORDER BY Disruption_Rate_Percent DESC, Avg_Lead_Time DESC;
+
+--d)Which transportation modes contain the highest number or proportion of high-risk shipments?
+
+WITH RiskCategories AS (SELECT Transport, CASE 
+            WHEN Geopolitical_Risk >= 8 
+                 OR Carrier_Reliability <= 2 
+                 OR Lead_Time >= 20 
+                 OR Disruption_Occurred = 1 
+            THEN 'High Risk'
+            WHEN Geopolitical_Risk BETWEEN 4 AND 7 
+                 OR Carrier_Reliability BETWEEN 3 AND 5 
+                 OR Lead_Time BETWEEN 10 AND 19 
+            THEN 'Medium Risk'
+			ELSE 'Low Risk' END AS Risk_Category FROM dbo.GlobalSupplyChainRisk
+)SELECT Transport,COUNT(*) AS HighRisk_Shipments, CAST(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM RiskCategories WHERE Risk_Category = 'High Risk') AS DECIMAL(5,2)) AS Share_of_HighRisk
+FROM RiskCategories WHERE Risk_Category = 'High Risk' GROUP BY Transport ORDER BY HighRisk_Shipments DESC;
+
+--e)What are the top 5 routes ranked by a combined risk profile?
+SELECT TOP 5 Origin_Port, Destination,
+    COUNT(*) AS Total_Shipments,
+    AVG(Lead_Time) AS Avg_Lead_Time,
+    AVG(Carrier_Reliability) AS Avg_Carrier_Reliability,
+    AVG(Geopolitical_Risk) AS Avg_Geopolitical_Risk,
+    CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2)) AS Disruption_Rate_Percent,
+    -- Combined Risk Score: higher = riskier
+    (CAST(SUM(CASE WHEN Disruption_Occurred = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS DECIMAL(5,2))
+     + AVG(Lead_Time)
+     + AVG(Geopolitical_Risk)
+     + (10 - AVG(Carrier_Reliability))) AS Combined_Risk_Score
+FROM dbo.GlobalSupplyChainRisk GROUP BY Origin_Port, Destination ORDER BY Combined_Risk_Score DESC;
+
+
